@@ -116,15 +116,17 @@ local function buildPlaza(map: Folder)
 	ground.Name = "Plaza"
 	ground.Parent = map
 
-	-- Floor plate over the baseplate so the plaza reads as its own space.
+	-- Floor plate (there is no baseplate).
 	box(ground, "PlazaFloor", Vector3.new(0, -0.5, 0), Vector3.new(PLAZA_HALF * 2, 1, PLAZA_HALF * 2), COLORS.ground, Enum.Material.Slate)
 
 	-- Perimeter, closed except for nothing: attackers/defenders spawn inside.
+	-- X walls own the corners; Z walls stop short of them so nothing overlaps (z-fighting).
 	local H = PLAZA_HALF
-	wall(ground, "Perimeter", "X", -H, -H, H, 0, PERIMETER_H, {}, nil, COLORS.wall)
-	wall(ground, "Perimeter", "X", H, -H, H, 0, PERIMETER_H, {}, nil, COLORS.wall)
-	wall(ground, "Perimeter", "Z", -H, -H, H, 0, PERIMETER_H, {}, nil, COLORS.wall)
-	wall(ground, "Perimeter", "Z", H, -H, H, 0, PERIMETER_H, {}, nil, COLORS.wall)
+	local T = WALL_T / 2
+	wall(ground, "Perimeter", "X", -H, -H - T, H + T, 0, PERIMETER_H, {}, nil, COLORS.wall)
+	wall(ground, "Perimeter", "X", H, -H - T, H + T, 0, PERIMETER_H, {}, nil, COLORS.wall)
+	wall(ground, "Perimeter", "Z", -H, -H + T, H - T, 0, PERIMETER_H, {}, nil, COLORS.wall)
+	wall(ground, "Perimeter", "Z", H, -H + T, H - T, 0, PERIMETER_H, {}, nil, COLORS.wall)
 
 	-- Central plaza cover (mix of half and full per GDD).
 	local c = Instance.new("Folder")
@@ -158,10 +160,12 @@ local function buildBetaLobby(map: Folder)
 
 	-- Shell: doorways are 6 wide x 10 tall. West wall solid; east wall has two doors;
 	-- north and south have one door each, giving tight multi-angle entries.
-	wall(lobby, "WestWall", "Z", LOBBY_X0, LOBBY_Z0, LOBBY_Z1, 0, LOBBY_H, {}, nil, COLORS.building)
-	wall(lobby, "EastWall", "Z", LOBBY_X1, LOBBY_Z0, LOBBY_Z1, 0, LOBBY_H, { -18, 18 }, DOOR_H, COLORS.building)
-	wall(lobby, "NorthWall", "X", LOBBY_Z0, LOBBY_X0, LOBBY_X1, 0, LOBBY_H, { midX }, DOOR_H, COLORS.building)
-	wall(lobby, "SouthWall", "X", LOBBY_Z1, LOBBY_X0, LOBBY_X1, 0, LOBBY_H, { midX }, DOOR_H, COLORS.building)
+	-- North/south walls own the corners; east/west stop short so nothing overlaps.
+	local T = WALL_T / 2
+	wall(lobby, "WestWall", "Z", LOBBY_X0, LOBBY_Z0 + T, LOBBY_Z1 - T, 0, LOBBY_H, {}, nil, COLORS.building)
+	wall(lobby, "EastWall", "Z", LOBBY_X1, LOBBY_Z0 + T, LOBBY_Z1 - T, 0, LOBBY_H, { -18, 18 }, DOOR_H, COLORS.building)
+	wall(lobby, "NorthWall", "X", LOBBY_Z0, LOBBY_X0 - T, LOBBY_X1 + T, 0, LOBBY_H, { midX }, DOOR_H, COLORS.building)
+	wall(lobby, "SouthWall", "X", LOBBY_Z1, LOBBY_X0 - T, LOBBY_X1 + T, 0, LOBBY_H, { midX }, DOOR_H, COLORS.building)
 	box(
 		lobby,
 		"Roof",
@@ -204,7 +208,10 @@ local function buildAlphaRooftop(map: Folder)
 	local rampLen = math.sqrt(rampRun ^ 2 + ROOF_Y ^ 2)
 	local angle = math.atan2(ROOF_Y, rampRun)
 	local ramp = box(alpha, "Ramp", Vector3.new(65, ROOF_Y / 2, TOWER_Z1 + rampRun / 2), Vector3.new(12, 1, rampLen), COLORS.cover)
-	ramp.CFrame = CFrame.new(65, ROOF_Y / 2 - 0.5, TOWER_Z1 + rampRun / 2) * CFrame.Angles(angle, 0, 0)
+	-- Offset the center half a thickness along the slope normal so the top surface
+	-- runs exactly from the roof edge (TOWER_Z1, ROOF_Y) to the ground (TOWER_Z1 + rampRun, 0).
+	local center = Vector3.new(65, ROOF_Y / 2, TOWER_Z1 + rampRun / 2) - Vector3.new(0, math.cos(angle), math.sin(angle)) * 0.5
+	ramp.CFrame = CFrame.new(center) * CFrame.Angles(angle, 0, 0)
 
 	-- West parapet (half cover) with two openings: the long Aegis-Rail sightline
 	-- over the plaza is intentionally exposed.
